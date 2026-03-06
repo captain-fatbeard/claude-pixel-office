@@ -158,6 +158,7 @@ function parseTranscript(filePath: string): AgentState | null {
             lastText = undefined;
             statusText = "Thinking...";
             currentTurnHasText = false;
+            fireworks = false;
           }
         }
 
