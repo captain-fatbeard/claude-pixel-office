@@ -762,6 +762,115 @@ for (let row = 0; row < 2; row++) {
   }
 }
 
+// --- Weekly commits data ---
+
+let weeklyCommits = { days: [], total: 0 };
+
+function fetchCommits() {
+  fetch("/api/commits")
+    .then((r) => r.json())
+    .then((data) => { weeklyCommits = data; })
+    .catch(() => {});
+}
+fetchCommits();
+setInterval(fetchCommits, 5 * 60 * 1000);
+
+// --- Whiteboard ---
+
+function drawWhiteboard(x, y) {
+  const bw = 240;
+  const bh = 180;
+
+  // Easel legs (slightly asymmetric for angled look)
+  ctx.fillStyle = "#8a7a6a";
+  ctx.fillRect(x + 36, y + bh - 10, 4, 54);
+  ctx.fillRect(x + bw - 40, y + bh - 10, 4, 46);
+  // Back leg (offset)
+  ctx.fillStyle = "#7a6a5a";
+  ctx.fillRect(x + bw / 2 + 6, y + bh + 5, 4, 38);
+
+  // Board shadow
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
+  ctx.fillRect(x + 3, y + 3, bw, bh);
+
+  // White board surface
+  ctx.fillStyle = "#f8f8f4";
+  ctx.fillRect(x, y, bw, bh);
+
+  // Board border (silver frame)
+  ctx.strokeStyle = "#ccc";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x + 1, y + 1, bw - 2, bh - 2);
+
+  // Tray at bottom
+  ctx.fillStyle = "#ddd";
+  ctx.fillRect(x + 10, y + bh - 4, bw - 20, 6);
+  // Markers on tray
+  ctx.fillStyle = "#2255cc";
+  ctx.fillRect(x + 20, y + bh - 8, 16, 5);
+  ctx.fillStyle = "#cc3333";
+  ctx.fillRect(x + 42, y + bh - 8, 16, 5);
+  ctx.fillStyle = "#22aa44";
+  ctx.fillRect(x + 64, y + bh - 8, 16, 5);
+
+  // Title
+  ctx.font = "bold 16px Caveat, cursive";
+  ctx.fillStyle = "#2255cc";
+  ctx.fillText("Weekly Contributions", x + 14, y + 22);
+
+  // Underline
+  ctx.fillRect(x + 14, y + 26, 130, 2);
+
+  if (weeklyCommits.days.length === 0) {
+    ctx.font = "14px Caveat, cursive";
+    ctx.fillStyle = "#999";
+    ctx.fillText("loading...", x + 14, y + 50);
+    return;
+  }
+
+  // Bar chart
+  const days = weeklyCommits.days;
+  const maxCount = Math.max(...days.map((d) => d.count), 1);
+  const barW = 22;
+  const gap = 6;
+  const chartX = x + 18;
+  const chartY = y + 42;
+  const chartH = 65;
+
+  for (let i = 0; i < days.length; i++) {
+    const bx = chartX + i * (barW + gap);
+    const barH = Math.max(2, (days[i].count / maxCount) * chartH);
+
+    // Bar
+    ctx.fillStyle = "#2255cc";
+    ctx.fillRect(bx, chartY + chartH - barH, barW, barH);
+
+    // Highlight top
+    ctx.fillStyle = "#4477ee";
+    ctx.fillRect(bx, chartY + chartH - barH, barW, 3);
+
+    // Count on top
+    if (days[i].count > 0) {
+      ctx.font = "bold 13px Caveat, cursive";
+      ctx.fillStyle = "#2255cc";
+      ctx.textAlign = "center";
+      ctx.fillText(String(days[i].count), bx + barW / 2, chartY + chartH - barH - 4);
+    }
+
+    // Day label
+    ctx.font = "12px Caveat, cursive";
+    ctx.fillStyle = "#666";
+    ctx.textAlign = "center";
+    ctx.fillText(days[i].label, bx + barW / 2, chartY + chartH + 12);
+  }
+  ctx.textAlign = "left";
+
+  // Total in corner
+  ctx.font = "bold 14px Caveat, cursive";
+  ctx.fillStyle = "#2255cc";
+  ctx.fillText("Total: " + weeklyCommits.total, x + 14, y + bh - 16);
+}
+
 // --- Scene ---
 
 const WALL_H = 100;
@@ -847,7 +956,8 @@ function drawBackground() {
     ctx.restore();
   }
 
-  // (agents walk in from the right side)
+  // Whiteboard (floor-standing, top-right corner)
+  drawWhiteboard(W - 280, WALL_H + 10);
 }
 
 function drawWorkstation(ws, occupied) {

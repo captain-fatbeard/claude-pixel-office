@@ -1,11 +1,106 @@
 import { createServer } from "http";
-import { readFileSync, readdirSync, statSync, watch, openSync, readSync, fstatSync, closeSync } from "fs";
+import { readFileSync, readdirSync, statSync, watch, openSync, readSync, fstatSync, closeSync, existsSync } from "fs";
 import { join, extname } from "path";
 import { homedir } from "os";
 import { WebSocketServer, WebSocket } from "ws";
 
-const PORT = 3333;
+const PORT = parseInt(process.env.PORT || "4444");
 const CLAUDE_DIR = join(homedir(), ".claude", "projects");
+
+// --- Load .env ---
+function loadEnv() {
+  const envPath = join(import.meta.dirname || ".", ".env");
+  if (!existsSync(envPath)) return;
+  const lines = readFileSync(envPath, "utf-8").split("\n");
+  for (const line of lines) {
+    const match = line.match(/^([^#=]+)=(.*)$/);
+    if (match) process.env[match[1].trim()] = match[2].trim();
+  }
+}
+loadEnv();
+
+const GITHUB_USERNAME = process.env.GITHUB_USERNAME || "";
+
+// --- GitHub weekly commits ---
+interface WeeklyCommits {
+  days: { label: string; count: number }[];
+  total: number;
+  fetchedAt: number;
+}
+
+let cachedCommits: WeeklyCommits | null = null;
+
+async function fetchWeeklyCommits(): Promise<WeeklyCommits> {
+  // Cache for 5 minutes
+  if (cachedCommits && Date.now() - cachedCommits.fetchedAt < 5 * 60 * 1000) {
+    return cachedCommits;
+  }
+
+  if (!GITHUB_USERNAME) {
+    return { days: [], total: 0, fetchedAt: Date.now() };
+  }
+
+  try {
+    const now = new Date();
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const days: { label: string; count: number }[] = [];
+
+    // Initialize current week (Monday to today)
+    const dateToIdx = new Map<string, number>();
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ...
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    for (let i = 0; i <= daysSinceMonday; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - daysSinceMonday + i);
+      const dateStr = d.toISOString().split("T")[0];
+      days.push({ label: dayNames[d.getDay()], count: 0 });
+      dateToIdx.set(dateStr, i);
+    }
+
+    // Scrape GitHub contributions page
+    const res = await fetch(
+      `https://github.com/users/${GITHUB_USERNAME}/contributions`,
+      { headers: { "User-Agent": "claude-pixel-office" } }
+    );
+    if (!res.ok) throw new Error(`GitHub returned ${res.status}`);
+    const html = await res.text();
+
+    // Parse: find each date cell and its matching tooltip
+    // Cells: data-date="YYYY-MM-DD" id="contribution-day-component-X-Y"
+    // Tooltips: "N contributions on Month Dayth." or "No contributions on..."
+    const cellRegex = /data-date="(\d{4}-\d{2}-\d{2})" id="(contribution-day-component-[^"]+)"/g;
+    const cellIds = new Map<string, string>(); // id -> date
+    let match;
+    while ((match = cellRegex.exec(html)) !== null) {
+      cellIds.set(match[2], match[1]);
+    }
+
+    // Match tooltips to cells
+    const tipRegex = /for="(contribution-day-component-[^"]+)"[^>]*>([^<]+)</g;
+    while ((match = tipRegex.exec(html)) !== null) {
+      const cellId = match[1];
+      const tipText = match[2].trim();
+      const date = cellIds.get(cellId);
+      if (!date) continue;
+
+      const idx = dateToIdx.get(date);
+      if (idx === undefined) continue;
+
+      // Parse count: "N contribution(s) on..." or "No contributions on..."
+      const countMatch = tipText.match(/^(\d+) contribution/);
+      if (countMatch) {
+        days[idx].count = parseInt(countMatch[1], 10);
+      }
+    }
+
+    const total = days.reduce((sum, d) => sum + d.count, 0);
+    cachedCommits = { days, total, fetchedAt: Date.now() };
+    return cachedCommits;
+  } catch (err) {
+    console.error("Error fetching GitHub contributions:", err);
+    return cachedCommits || { days: [], total: 0, fetchedAt: Date.now() };
+  }
+}
 
 // --- Types ---
 
@@ -265,11 +360,18 @@ const MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
 };
 
-const server = createServer((req, res) => {
+const server = createServer(async (req, res) => {
   if (req.url === "/api/agents") {
     const agents = discoverAgents();
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(agents));
+    return;
+  }
+
+  if (req.url === "/api/commits") {
+    const commits = await fetchWeeklyCommits();
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(commits));
     return;
   }
 
