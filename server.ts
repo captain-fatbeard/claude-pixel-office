@@ -6,6 +6,8 @@ import { WebSocketServer, WebSocket } from "ws";
 
 const PORT = 3333;
 const CLAUDE_DIR = join(homedir(), ".claude", "projects");
+const FIREWORKS_DURATION = 8000; // ms to keep fireworks active
+const fireworkTimestamps = new Map<string, number>(); // sessionId -> timestamp
 
 // --- Types ---
 
@@ -116,7 +118,6 @@ function parseTranscript(filePath: string): AgentState | null {
     let lastTool: string | undefined;
     let lastText: string | undefined;
     let statusText: string | undefined;
-    let fireworks = false;
     let timestamp = 0;
     let currentTurnHasText = false;
     let pendingCommitToolIds = new Set<string>();
@@ -143,7 +144,8 @@ function parseTranscript(filePath: string): AgentState | null {
               if (block.type === "tool_result" && pendingCommitToolIds.has(block.tool_use_id)) {
                 pendingCommitToolIds.delete(block.tool_use_id);
                 if (!block.is_error) {
-                  fireworks = true;
+                  // Record fireworks timestamp globally (survives re-parses)
+                  if (sessionId) fireworkTimestamps.set(sessionId, Date.now());
                   statusText = "Committed!";
                 }
               }
@@ -158,7 +160,6 @@ function parseTranscript(filePath: string): AgentState | null {
             lastText = undefined;
             statusText = "Thinking...";
             currentTurnHasText = false;
-            fireworks = false;
           }
         }
 
@@ -206,6 +207,11 @@ function parseTranscript(filePath: string): AgentState | null {
     }
 
     if (!sessionId) return null;
+
+    // Fireworks active if triggered within the duration window
+    const fwTime = fireworkTimestamps.get(sessionId);
+    const fireworks = fwTime ? (Date.now() - fwTime < FIREWORKS_DURATION) : false;
+    if (fwTime && Date.now() - fwTime >= FIREWORKS_DURATION) fireworkTimestamps.delete(sessionId);
 
     return { sessionId, projectName: "", activity, lastTool, lastText, statusText, fireworks, timestamp };
   } catch {
