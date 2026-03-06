@@ -108,7 +108,7 @@ function getSessionId(filePath: string): string {
 function parseTranscript(filePath: string): AgentState | null {
   try {
     // Read a larger tail to make sure we capture the latest user message
-    const tail = readTail(filePath, 32768);
+    const tail = readTail(filePath, 131072);
     const lines = tail.split("\n").filter((l) => l.trim());
 
     let sessionId = "";
@@ -118,9 +118,13 @@ function parseTranscript(filePath: string): AgentState | null {
     let statusText: string | undefined;
     let fireworks = false;
     let timestamp = 0;
+    let currentTurnHasText = false;
 
     // Get sessionId from head of file
     sessionId = getSessionId(filePath);
+
+    // Drop the first line — it's likely a partial JSON line from the tail cut
+    if (lines.length > 0) lines.shift();
 
     // Parse tail for recent activity — process all lines to find latest state
     for (const line of lines) {
@@ -129,11 +133,13 @@ function parseTranscript(filePath: string): AgentState | null {
         if (obj.sessionId) sessionId = obj.sessionId;
         if (obj.timestamp) timestamp = new Date(obj.timestamp).getTime();
 
-        // User message = agent is about to think
+        // User message = new turn, reset everything
         if (obj.type === "user") {
           activity = "thinking";
           lastTool = undefined;
+          lastText = undefined;
           statusText = "Thinking...";
+          currentTurnHasText = false;
         }
 
         if (obj.type === "assistant" && obj.message?.content) {
@@ -154,7 +160,8 @@ function parseTranscript(filePath: string): AgentState | null {
               activity = "thinking";
               statusText = "Thinking...";
             } else if (block.type === "text" && block.text?.trim()) {
-              lastText = block.text.slice(0, 100);
+              lastText = block.text;
+              currentTurnHasText = true;
               // Only go idle if the response is fully complete
               if (obj.message.stop_reason === "end_turn") {
                 activity = "idle";
@@ -167,6 +174,9 @@ function parseTranscript(filePath: string): AgentState | null {
         }
       } catch {}
     }
+
+    // Only include lastText if it was set in the current turn
+    if (!currentTurnHasText) lastText = undefined;
 
     // If the file was modified very recently, the agent is likely active
     const fileStat = statSync(filePath);
@@ -200,7 +210,7 @@ function discoverAgents(): AgentState[] {
             if (agent) {
               agent.projectName = "general";
               // Only include if active in the last 10 minutes
-              if (Date.now() - agent.timestamp < 10 * 60 * 1000) {
+              if (Date.now() - agent.timestamp < 20 * 60 * 1000) {
                 agents.push(agent);
               }
             }

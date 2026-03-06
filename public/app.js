@@ -118,7 +118,7 @@ function getSprite(agent, deskIdx) {
   if (!sprites[agent.sessionId]) {
     const ws = WORKSTATIONS[deskIdx];
     const seatX = ws.x + 22;
-    const seatY = ws.y + 6;
+    const seatY = ws.y - 2;
 
     if (initialLoad) {
       // Already here — place directly at desk
@@ -154,7 +154,7 @@ function getSprite(agent, deskIdx) {
 
   // Chair position is where the character sits (in world coords, accounting for scale)
   const seatX = ws.x + 22 * AGENT_SCALE;
-  const seatY = ws.y + 6 * AGENT_SCALE;
+  const seatY = ws.y - 2 * AGENT_SCALE;
 
   // If activity changed or desk changed, update target
   if (agent.activity === "idle") {
@@ -254,10 +254,10 @@ function drawDesk(x, y) {
   ctx.fillRect(x, y + 4, 64, 2);
   // Thin black metal legs
   ctx.fillStyle = COLORS.deskLeg;
-  ctx.fillRect(x + 4, y + 6, 2, 32);
-  ctx.fillRect(x + 58, y + 6, 2, 32);
+  ctx.fillRect(x + 4, y + 6, 2, 20);
+  ctx.fillRect(x + 58, y + 6, 2, 20);
   // Cross bar
-  ctx.fillRect(x + 4, y + 28, 56, 1);
+  ctx.fillRect(x + 4, y + 18, 56, 1);
 }
 
 function drawMonitor(x, y, active) {
@@ -559,7 +559,7 @@ function drawCharacter(x, y, appearance, activity, state, walkFrame, facing) {
 
 // --- Activity indicator ---
 
-function drawActivityBadge(x, y, activity, tool, sessionId, statusText) {
+function drawActivityBadge(x, y, activity, tool, sessionId, statusText, idleSince) {
   const idleActivities = [
     "scrolling X",
     "on Reddit",
@@ -598,12 +598,17 @@ function drawActivityBadge(x, y, activity, tool, sessionId, statusText) {
 
   let text;
   if (activity === "idle") {
-    // Pick idle activity per agent with offset so they're not in sync
-    const seed = hashStr(sessionId || "idle");
-    const offset = seed % idleActivities.length;
-    const cycle = Math.floor((Date.now() + seed * 1000) / 8000);
-    const idx = (offset + cycle) % idleActivities.length;
-    text = idleActivities[idx];
+    const idleFor = idleSince ? Date.now() - idleSince : 0;
+    if (idleFor >= 10 * 60 * 1000) {
+      // Idle for 10+ minutes — show fun idle activities
+      const seed = hashStr(sessionId || "idle");
+      const offset = seed % idleActivities.length;
+      const cycle = Math.floor((Date.now() + seed * 1000) / 8000);
+      const idx = (offset + cycle) % idleActivities.length;
+      text = idleActivities[idx];
+    } else {
+      return; // no badge for short idle
+    }
   } else {
     // Use rich status text from server, fall back to generic label
     text = statusText || fallbackLabels[activity] || "?";
@@ -749,7 +754,7 @@ for (let row = 0; row < 2; row++) {
   for (let col = 0; col < 4; col++) {
     WORKSTATIONS.push({
       x: 320 + col * 310,
-      y: 260 + row * 280,
+      y: 310 + row * 280,
     });
   }
 }
@@ -844,7 +849,7 @@ function drawWorkstation(ws, occupied) {
   drawDesk(0, 0);
   drawMonitor(18, -22, occupied);
   drawCoffeeMug(48, -6);
-  drawChair(20, 30);
+  drawChair(20, 22);
   ctx.restore();
 }
 
@@ -929,13 +934,66 @@ function render() {
     drawCharacter(0, 0, appearance, agent.activity, sp.state, sp.walkFrame, sp.facing);
     ctx.restore();
 
-    // Draw badge (slightly smaller than before)
-    const badgeScale = AGENT_SCALE * 0.9;
-    ctx.save();
-    ctx.translate(sp.x + 4 * charScale, sp.y - 22 * charScale);
-    ctx.scale(badgeScale, badgeScale);
-    drawActivityBadge(0, 0, agent.activity, agent.lastTool, agent.sessionId, agent.statusText);
-    ctx.restore();
+    // Draw speech bubble with last response text above agent
+    if (agent.lastText && agent.activity !== "idle") {
+      const fullText = agent.lastText;
+      const bubbleX = sp.x + 4 * charScale;
+      const bubbleY = sp.y - 24 * charScale;
+      const maxLineW = 260;
+
+      ctx.save();
+      ctx.font = "13px monospace";
+
+      // Word-wrap text into lines
+      const words = fullText.split(" ");
+      const lines = [];
+      let currentLine = "";
+      for (const word of words) {
+        const test = currentLine ? currentLine + " " + word : word;
+        if (ctx.measureText(test).width > maxLineW && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = test;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+
+      const lineH = 16;
+      const padX = 10;
+      const padY = 8;
+      const textBlockH = lines.length * lineH;
+      const actualW = Math.max(...lines.map(l => ctx.measureText(l).width));
+      const bw = actualW + padX * 2;
+      const bh = textBlockH + padY * 2;
+
+      // Bubble background
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.beginPath();
+      ctx.roundRect(bubbleX - bw / 2, bubbleY - bh, bw, bh, 6);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.1)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Pointer triangle
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.beginPath();
+      ctx.moveTo(bubbleX - 5, bubbleY);
+      ctx.lineTo(bubbleX + 5, bubbleY);
+      ctx.lineTo(bubbleX, bubbleY + 7);
+      ctx.closePath();
+      ctx.fill();
+
+      // Text lines
+      ctx.fillStyle = "#333";
+      ctx.textAlign = "center";
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], bubbleX, bubbleY - bh + padY + (i + 1) * lineH - 2);
+      }
+      ctx.textAlign = "left";
+      ctx.restore();
+    }
 
     // Trigger fireworks on git commit
     if (agent.fireworks && !activeFireworks.has(agent.sessionId)) {
@@ -954,10 +1012,46 @@ function render() {
     const label = agent.projectName.slice(0, 18);
     ctx.font = "bold 15px monospace";
     const labelW = ctx.measureText(label).width;
+
     ctx.fillStyle = "rgba(255,255,255,0.75)";
     ctx.fillRect(ws.x - 3, labelY - 14, labelW + 6, 20);
     ctx.fillStyle = "#2a2a2a";
     ctx.fillText(label, ws.x, labelY);
+
+    // Status text to the right of the agent
+    const statusColors = {
+      thinking: "#7a6a00",
+      writing: "#2a9a7a",
+      reading: "#5a6acc",
+      running: "#cc4a6a",
+      searching: "#8a5acc",
+      waiting: "#cc7722",
+      idle: "#999",
+    };
+    let statusStr = "";
+    if (agent.activity === "idle") {
+      const idleFor = sp.idleSince ? Date.now() - sp.idleSince : 0;
+      if (idleFor >= 10 * 60 * 1000) {
+        const seed = hashStr(agent.sessionId || "idle");
+        const idleActivities = ["scrolling X","on Reddit","watching YT","checking phone","staring at wall","doodling","stretching","snacking","daydreaming","googling self","online shopping","reading HN","refilling water"];
+        const offset = seed % idleActivities.length;
+        const cycle = Math.floor((Date.now() + seed * 1000) / 8000);
+        statusStr = idleActivities[(offset + cycle) % idleActivities.length];
+      }
+    } else {
+      statusStr = agent.statusText || agent.activity;
+    }
+
+    if (statusStr) {
+      const statusX = sp.x + 18 * charScale;
+      const statusY = sp.y + 6 * charScale;
+      ctx.font = "bold 15px monospace";
+      const statusW = ctx.measureText(statusStr).width;
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      ctx.fillRect(statusX - 3, statusY - 14, statusW + 6, 20);
+      ctx.fillStyle = statusColors[agent.activity] || "#999";
+      ctx.fillText(statusStr, statusX, statusY);
+    }
   }
 
   if (entries.length === 0) {
