@@ -247,17 +247,20 @@ function updateSprite(sp, agent) {
 // --- Office furniture ---
 
 function drawDesk(x, y) {
-  // Modern slim desk - white oak top, thin metal legs
+  // Modern slim desk - top-down 3/4 view
+  // Desk top surface (visible from above)
   ctx.fillStyle = "#e8ddd0";
-  ctx.fillRect(x, y, 64, 4);
+  ctx.fillRect(x, y, 64, 14);
+  // Front edge
   ctx.fillStyle = "#ddd2c4";
-  ctx.fillRect(x, y + 4, 64, 2);
-  // Thin black metal legs
+  ctx.fillRect(x, y + 14, 64, 3);
+  // Shadow on top
+  ctx.fillStyle = "rgba(0,0,0,0.05)";
+  ctx.fillRect(x + 2, y + 2, 60, 10);
+  // Thin black metal legs (short, barely visible)
   ctx.fillStyle = COLORS.deskLeg;
-  ctx.fillRect(x + 4, y + 6, 2, 20);
-  ctx.fillRect(x + 58, y + 6, 2, 20);
-  // Cross bar
-  ctx.fillRect(x + 4, y + 18, 56, 1);
+  ctx.fillRect(x + 2, y + 17, 2, 10);
+  ctx.fillRect(x + 60, y + 17, 2, 10);
 }
 
 function drawMonitor(x, y, active) {
@@ -648,7 +651,7 @@ function drawActivityBadge(x, y, activity, tool, sessionId, statusText, idleSinc
 // --- Coffee machine ---
 
 const KITCHEN_X = 10;
-const KITCHEN_Y = 205;
+const KITCHEN_Y = 110;
 const KITCHEN_H = H - KITCHEN_Y - 10;
 const COFFEE_MACHINE = { x: KITCHEN_X + 12, y: KITCHEN_Y + 14 };
 const AGENT_SCALE = 1.8;
@@ -754,20 +757,22 @@ for (let row = 0; row < 2; row++) {
   for (let col = 0; col < 4; col++) {
     WORKSTATIONS.push({
       x: 320 + col * 310,
-      y: 310 + row * 280,
+      y: 350 + row * 280,
     });
   }
 }
 
 // --- Scene ---
 
+const WALL_H = 100;
+
 function drawHerringboneFloor() {
   // Herringbone parquet pattern
   const plankW = 16;
   const plankH = 6;
-  for (let y = 200; y < H; y += plankH) {
+  for (let y = WALL_H; y < H; y += plankH) {
     for (let x = 0; x < W; x += plankW * 2) {
-      const row = Math.floor((y - 200) / plankH);
+      const row = Math.floor((y - WALL_H) / plankH);
       const offsetX = (row % 2) * plankW;
       // Light plank
       ctx.fillStyle = COLORS.floorLight;
@@ -782,25 +787,25 @@ function drawHerringboneFloor() {
 function drawBackground() {
   // Base floor
   ctx.fillStyle = COLORS.floor;
-  ctx.fillRect(0, 200, W, H - 200);
+  ctx.fillRect(0, WALL_H, W, H - WALL_H);
 
   // Herringbone parquet
   drawHerringboneFloor();
 
-  // Wall
+  // Wall (short, Pokemon-style 3/4 top-down)
   ctx.fillStyle = COLORS.wall;
-  ctx.fillRect(0, 0, W, 200);
+  ctx.fillRect(0, 0, W, WALL_H);
 
   // Wainscoting / panel detail on lower wall
   ctx.fillStyle = COLORS.wallAccent;
-  ctx.fillRect(0, 140, W, 60);
+  ctx.fillRect(0, WALL_H - 30, W, 30);
   // Panel lines
   ctx.fillStyle = COLORS.wallTrim;
-  ctx.fillRect(0, 140, W, 2);
-  ctx.fillRect(0, 198, W, 2);
+  ctx.fillRect(0, WALL_H - 30, W, 2);
+  ctx.fillRect(0, WALL_H - 2, W, 2);
   // Vertical panel dividers
   for (let x = 0; x < W; x += 160) {
-    ctx.fillRect(x, 142, 1, 56);
+    ctx.fillRect(x, WALL_H - 28, 1, 26);
   }
 
   // Ceiling line
@@ -810,34 +815,37 @@ function drawBackground() {
   ctx.fillStyle = COLORS.wallTrim;
   ctx.fillRect(0, 3, W, 3);
 
-  // Tall windows (on the right side of the wall, leaving kitchen space on left)
-  drawWindow(460, 10, 100, 180);
-  drawWindow(700, 10, 100, 180);
-  drawWindow(940, 10, 100, 180);
-  drawWindow(1180, 10, 100, 180);
-  drawWindow(1420, 10, 100, 180);
+  // Windows (shorter to fit wall)
+  drawWindow(460, 8, 100, 82);
+  drawWindow(700, 8, 100, 82);
+  drawWindow(940, 8, 100, 82);
+  drawWindow(1180, 8, 100, 82);
+  drawWindow(1420, 8, 100, 82);
 
   // Kitchen floor tile (different from office)
   ctx.fillStyle = "rgba(220, 215, 205, 0.3)";
-  ctx.fillRect(0, 200, 120, H - 200);
+  ctx.fillRect(0, WALL_H, 120, H - WALL_H);
 
   // Kitchen area along the left wall
   drawKitchen(KITCHEN_X, KITCHEN_Y);
   drawCoffeeMachine(COFFEE_MACHINE.x, COFFEE_MACHINE.y);
 
   // Area rugs under workstation rows
-  drawCarpet(300, 290, 620, 140, COLORS.carpet1);
-  drawCarpet(960, 290, 580, 140, COLORS.carpet2);
-  drawCarpet(420, 570, 500, 140, COLORS.carpet3);
-  drawCarpet(960, 570, 500, 140, COLORS.carpet1);
+  drawCarpet(240, 300, 560, 160, COLORS.carpet1);
+  drawCarpet(900, 300, 560, 160, COLORS.carpet2);
+  drawCarpet(240, 580, 560, 160, COLORS.carpet3);
+  drawCarpet(900, 580, 560, 160, COLORS.carpet1);
 
   // Plants
-  drawPlant(260, 198);
-  drawPlant(590, 198);
-  drawPlant(830, 198);
-  drawPlant(1090, 198);
-  drawPlant(1330, 198);
-  drawPlant(W - 40, 198);
+  const plantScale = 3;
+  const plantY = WALL_H;
+  for (const px of [260, 830, 1330]) {
+    ctx.save();
+    ctx.translate(px, plantY);
+    ctx.scale(plantScale, plantScale);
+    drawPlant(0, -6);
+    ctx.restore();
+  }
 
   // (agents walk in from the right side)
 }
