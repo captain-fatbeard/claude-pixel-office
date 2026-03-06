@@ -20,6 +20,7 @@ function loadEnv() {
 loadEnv();
 
 const GITHUB_USERNAME = process.env.GITHUB_USERNAME || "";
+const OFFICE_NAME = process.env.OFFICE_NAME || "Claude Pixel Office";
 
 // --- GitHub weekly commits ---
 interface WeeklyCommits {
@@ -365,6 +366,12 @@ const server = createServer(async (req, res) => {
     const agents = discoverAgents();
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(agents));
+    return;
+  }
+
+  if (req.url === "/api/config") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ officeName: OFFICE_NAME }));
     return;
   }
 

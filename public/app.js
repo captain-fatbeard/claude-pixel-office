@@ -3,6 +3,15 @@ const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const status = document.getElementById("status");
 
+// Fetch office name
+fetch("/api/config")
+  .then((r) => r.json())
+  .then((cfg) => {
+    document.getElementById("office-title").textContent = cfg.officeName;
+    document.title = cfg.officeName;
+  })
+  .catch(() => {});
+
 const W = canvas.width;
 const H = canvas.height;
 
@@ -167,9 +176,9 @@ function getSprite(agent, deskIdx) {
 
     if (idleFor >= 5 * 60 * 1000 && sp.settled && !sp.atCoffee && !sp.coffeeTrip) {
       // Idle for 5 minutes — walk to coffee machine
-      const offsetX = (deskIdx % 3) * 14 - 14;
-      sp.targetX = COFFEE_MACHINE.x + offsetX;
-      sp.targetY = COFFEE_MACHINE.y + 60;
+      const offsetX = (deskIdx % 3) * 14;
+      sp.targetX = KITCHEN_X + 80 + offsetX;
+      sp.targetY = COFFEE_MACHINE.y + 40;
       sp.state = "walking";
       sp.settled = false;
       sp.coffeeTrip = true;
@@ -1109,6 +1118,40 @@ function render() {
       for (let i = 0; i < lines.length; i++) {
         ctx.fillText(lines[i], bubbleX, bubbleY - bh + padY + (i + 1) * lineH - 2);
       }
+      ctx.textAlign = "left";
+      ctx.restore();
+    }
+
+    // Coffee speech bubble
+    if (sp.atCoffee) {
+      const coffeeText = "mmm coffee coffee coffee";
+      const cbx = sp.x + 4 * charScale;
+      const cby = sp.y - 20 * charScale;
+      ctx.save();
+      ctx.font = "13px monospace";
+      const ctw = ctx.measureText(coffeeText).width;
+      const cpx = 8;
+      const cbw = ctw + cpx * 2;
+
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.beginPath();
+      ctx.roundRect(cbx - cbw / 2, cby - 20, cbw, 24, 6);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.1)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.beginPath();
+      ctx.moveTo(cbx - 5, cby + 4);
+      ctx.lineTo(cbx + 5, cby + 4);
+      ctx.lineTo(cbx, cby + 11);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#6a4a2a";
+      ctx.textAlign = "center";
+      ctx.fillText(coffeeText, cbx, cby - 2);
       ctx.textAlign = "left";
       ctx.restore();
     }
