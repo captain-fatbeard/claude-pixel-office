@@ -119,6 +119,7 @@ function parseTranscript(filePath: string): AgentState | null {
     let fireworks = false;
     let timestamp = 0;
     let currentTurnHasText = false;
+    let pendingCommitToolIds = new Set<string>();
 
     // Get sessionId from head of file
     sessionId = getSessionId(filePath);
@@ -133,13 +134,31 @@ function parseTranscript(filePath: string): AgentState | null {
         if (obj.sessionId) sessionId = obj.sessionId;
         if (obj.timestamp) timestamp = new Date(obj.timestamp).getTime();
 
-        // User message = new turn, reset everything
+        // User message = new turn or tool results
         if (obj.type === "user") {
-          activity = "thinking";
-          lastTool = undefined;
-          lastText = undefined;
-          statusText = "Thinking...";
-          currentTurnHasText = false;
+          // Check for tool results from git commit
+          const content = obj.message?.content;
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              if (block.type === "tool_result" && pendingCommitToolIds.has(block.tool_use_id)) {
+                pendingCommitToolIds.delete(block.tool_use_id);
+                if (!block.is_error) {
+                  fireworks = true;
+                  statusText = "Committed!";
+                }
+              }
+            }
+          }
+
+          // If it's a real user message (not just tool results), reset turn
+          const hasHumanText = Array.isArray(content) && content.some((b: any) => b.type === "text");
+          if (hasHumanText || !Array.isArray(content)) {
+            activity = "thinking";
+            lastTool = undefined;
+            lastText = undefined;
+            statusText = "Thinking...";
+            currentTurnHasText = false;
+          }
         }
 
         if (obj.type === "assistant" && obj.message?.content) {
@@ -148,12 +167,11 @@ function parseTranscript(filePath: string): AgentState | null {
               activity = toolToActivity(block.name);
               lastTool = block.name;
               statusText = formatToolStatus(block.name, block.input || {});
-              // Detect git commit
+              // Track git commit tool calls (fireworks on success)
               if (block.name === "Bash") {
                 const cmd = ((block.input as any)?.command as string) || "";
-                if (/git\s+commit/.test(cmd)) {
-                  fireworks = true;
-                  statusText = "Committed!";
+                if (/git\s+commit/.test(cmd) && block.id) {
+                  pendingCommitToolIds.add(block.id);
                 }
               }
             } else if (block.type === "thinking") {
