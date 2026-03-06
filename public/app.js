@@ -996,13 +996,13 @@ function render() {
     }
 
     // Trigger fireworks on git commit
-    if (agent.fireworks && !activeFireworks.has(agent.sessionId)) {
+    const isCommit = agent.statusText === "Committed!";
+    if (isCommit && !activeFireworks.has(agent.sessionId)) {
       activeFireworks.add(agent.sessionId);
-      // Spawn multiple bursts around the agent
       spawnFireworks(sp.x, sp.y - 30);
       spawnFireworks(sp.x - 40, sp.y - 60);
       spawnFireworks(sp.x + 50, sp.y - 50);
-    } else if (!agent.fireworks) {
+    } else if (!isCommit) {
       activeFireworks.delete(agent.sessionId);
     }
 
