@@ -33,7 +33,7 @@ let cachedCommits: WeeklyCommits | null = null;
 
 async function fetchWeeklyCommits(): Promise<WeeklyCommits> {
   // Cache for 5 minutes
-  if (cachedCommits && Date.now() - cachedCommits.fetchedAt < 5 * 60 * 1000) {
+  if (cachedCommits && Date.now() - cachedCommits.fetchedAt < 2 * 60 * 1000) {
     return cachedCommits;
   }
 

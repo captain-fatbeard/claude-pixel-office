@@ -782,7 +782,7 @@ function fetchCommits() {
     .catch(() => {});
 }
 fetchCommits();
-setInterval(fetchCommits, 5 * 60 * 1000);
+setInterval(fetchCommits, 2 * 60 * 1000);
 
 // --- Whiteboard ---
 
