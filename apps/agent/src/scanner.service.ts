@@ -52,8 +52,9 @@ export class ScannerService {
             continue;
           }
           const projectName = this.parseProjectName(dir);
-          const files = readdirSync(dirPath).filter((f) =>
-            f.endsWith('.jsonl'),
+          // Only scan top-level .jsonl files, skip subagents/
+          const files = readdirSync(dirPath).filter(
+            (f) => f.endsWith('.jsonl') && !f.startsWith('agent-'),
           );
           for (const file of files) {
             const agent = this.parseTranscript(join(dirPath, file));
