@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
-import { updateMachine } from "../../lib/store";
+import { updateUser } from "../../lib/store";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    if (!body.machineId || !body.machineName) {
+    if (!body.username) {
       return NextResponse.json(
-        { error: "machineId and machineName are required" },
+        { error: "username is required" },
         { status: 400 }
       );
     }
 
-    updateMachine({
-      machineId: body.machineId,
-      machineName: body.machineName,
+    updateUser({
+      username: body.username,
       agents: body.agents || [],
       commits: body.commits || { days: [], total: 0 },
     });

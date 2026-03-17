@@ -15,13 +15,6 @@ export default function Home() {
           font-family: 'Courier New', monospace;
           color: #e0e0e0;
         }
-        h1 {
-          font-size: 18px;
-          letter-spacing: 3px;
-          text-transform: uppercase;
-          color: #7c83ff;
-          margin-bottom: 14px;
-        }
         canvas {
           border: 2px solid #333;
           border-radius: 4px;
@@ -34,7 +27,6 @@ export default function Home() {
           color: #666;
         }
       `}</style>
-      <h1 id="office-title">Claude Pixel Office</h1>
       <canvas id="canvas" width="1600" height="900"></canvas>
       <div id="status">connecting...</div>
       <Script src="/office.js" strategy="afterInteractive" />

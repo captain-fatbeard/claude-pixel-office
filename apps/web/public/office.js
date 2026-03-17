@@ -411,6 +411,113 @@ function drawWhiteboard(x, y) {
   ctx.fillText("Total: " + weeklyCommits.total, x + 14, y + bh - 16);
 }
 
+// --- Wall sign ---
+
+function drawWallSign(x, y) {
+  // Pixel art "Signifly" sign on the wall
+  // Each letter is defined as a grid of 1s on a 5-wide x 7-tall matrix
+  const P = 4; // pixel size
+  const gap = 2; // gap between letters in pixels
+
+  // 5x7 pixel font for "Signifly"
+  const letters = {
+    S: [
+      [0,1,1,1,0],
+      [1,0,0,0,1],
+      [1,0,0,0,0],
+      [0,1,1,1,0],
+      [0,0,0,0,1],
+      [1,0,0,0,1],
+      [0,1,1,1,0],
+    ],
+    i: [
+      [0,0,1,0,0],
+      [0,0,0,0,0],
+      [0,1,1,0,0],
+      [0,0,1,0,0],
+      [0,0,1,0,0],
+      [0,0,1,0,0],
+      [0,1,1,1,0],
+    ],
+    g: [
+      [0,0,0,0,0],
+      [0,0,0,0,0],
+      [0,1,1,1,1],
+      [1,0,0,0,1],
+      [1,0,0,0,1],
+      [0,1,1,1,1],
+      [0,0,0,0,1],
+      [0,1,1,1,0],
+    ],
+    n: [
+      [0,0,0,0,0],
+      [0,0,0,0,0],
+      [1,0,1,1,0],
+      [1,1,0,0,1],
+      [1,0,0,0,1],
+      [1,0,0,0,1],
+      [1,0,0,0,1],
+    ],
+    f: [
+      [0,0,1,1,0],
+      [0,1,0,0,0],
+      [1,1,1,1,0],
+      [0,1,0,0,0],
+      [0,1,0,0,0],
+      [0,1,0,0,0],
+      [0,1,0,0,0],
+    ],
+    l: [
+      [0,1,1,0,0],
+      [0,0,1,0,0],
+      [0,0,1,0,0],
+      [0,0,1,0,0],
+      [0,0,1,0,0],
+      [0,0,1,0,0],
+      [0,1,1,1,0],
+    ],
+    y: [
+      [0,0,0,0,0],
+      [0,0,0,0,0],
+      [1,0,0,0,1],
+      [1,0,0,0,1],
+      [0,1,0,1,0],
+      [0,0,1,0,0],
+      [0,0,1,0,0],
+      [0,1,0,0,0],
+    ],
+  };
+
+  const word = ["S","i","g","n","i","f","l","y"];
+  const totalW = word.length * (5 * P + gap * P) - gap * P;
+  const totalH = 8 * P;
+
+  // Backing plate
+  ctx.fillStyle = "rgba(0,0,0,0.06)";
+  ctx.fillRect(x - 6, y - 4, totalW + 12, totalH + 8);
+
+  // Draw each letter
+  let cx = x;
+  for (const ch of word) {
+    const grid = letters[ch];
+    if (!grid) { cx += 5 * P + gap * P; continue; }
+    for (let row = 0; row < grid.length; row++) {
+      for (let col = 0; col < grid[row].length; col++) {
+        if (grid[row][col]) {
+          // Main color
+          ctx.fillStyle = "#7c83ff";
+          ctx.fillRect(cx + col * P, y + row * P, P, P);
+          // Subtle highlight on top-left pixel edge
+          ctx.fillStyle = "rgba(255,255,255,0.25)";
+          ctx.fillRect(cx + col * P, y + row * P, P, 1);
+          ctx.fillRect(cx + col * P, y + row * P, 1, P);
+        }
+      }
+    }
+    cx += 5 * P + gap * P;
+  }
+}
+
 // --- Scene ---
 const WALL_H = 100;
 
@@ -435,6 +542,7 @@ function drawBackground() {
   for (let x = 0; x < W; x += 160) ctx.fillRect(x, WALL_H - 28, 1, 26);
   ctx.fillStyle = COLORS.ceiling; ctx.fillRect(0, 0, W, 3);
   ctx.fillStyle = COLORS.wallTrim; ctx.fillRect(0, 3, W, 3);
+  drawWallSign(130, 12);
   drawWindow(460, 8, 100, 82); drawWindow(700, 8, 100, 82);
   drawWindow(940, 8, 100, 82); drawWindow(1180, 8, 100, 82); drawWindow(1420, 8, 100, 82);
   ctx.fillStyle = "rgba(220, 215, 205, 0.3)"; ctx.fillRect(0, WALL_H, 120, H - WALL_H);
@@ -566,13 +674,20 @@ function render() {
     const ws = WORKSTATIONS[deskIdx];
     const labelY = ws.y + 55 * AGENT_SCALE;
 
-    // Machine name + project name
-    const machineLabel = agent.machineName ? agent.machineName + " / " : "";
-    const label = (machineLabel + agent.projectName).slice(0, 28);
-    ctx.font = "bold 15px monospace";
-    const labelW = ctx.measureText(label).width;
-    ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.fillRect(ws.x - 3, labelY - 14, labelW + 6, 20);
-    ctx.fillStyle = "#2a2a2a"; ctx.fillText(label, ws.x, labelY);
+    // Username (line 1)
+    const usernameText = agent.username || "unknown";
+    ctx.font = "bold 12px monospace";
+    const usernameW = ctx.measureText(usernameText).width;
+    ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.fillRect(ws.x - 3, labelY - 12, usernameW + 6, 16);
+    ctx.fillStyle = "#2a2a2a"; ctx.fillText(usernameText, ws.x, labelY);
+
+    // Project name (line 2)
+    const projectText = agent.projectName.slice(0, 24);
+    ctx.font = "11px monospace";
+    const projectW = ctx.measureText(projectText).width;
+    const line2Y = labelY + 14;
+    ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.fillRect(ws.x - 3, line2Y - 12, projectW + 6, 16);
+    ctx.fillStyle = "#666"; ctx.fillText(projectText, ws.x, line2Y);
 
     // Status text
     const statusColors = {
@@ -631,7 +746,7 @@ async function poll() {
     agents = data.agents || [];
     if (data.commits) weeklyCommits = data.commits;
     cleanSprites();
-    status.textContent = `${agents.length} active agent${agents.length !== 1 ? "s" : ""} from ${(data.machines || []).length} machine${(data.machines || []).length !== 1 ? "s" : ""}`;
+    status.textContent = `${agents.length} active agent${agents.length !== 1 ? "s" : ""} from ${(data.users || []).length} user${(data.users || []).length !== 1 ? "s" : ""}`;
     if (initialLoad) setTimeout(() => { initialLoad = false; }, 500);
   } catch {
     status.textContent = "disconnected - retrying...";

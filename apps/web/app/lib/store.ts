@@ -6,7 +6,7 @@ export interface AgentState {
   lastText?: string;
   statusText?: string;
   timestamp: number;
-  machineName: string;
+  username: string;
 }
 
 export interface WeeklyCommits {
@@ -14,9 +14,8 @@ export interface WeeklyCommits {
   total: number;
 }
 
-export interface MachineState {
-  machineId: string;
-  machineName: string;
+interface UserState {
+  username: string;
   agents: AgentState[];
   commits: WeeklyCommits;
   lastSeen: number;
@@ -24,26 +23,24 @@ export interface MachineState {
 
 // Global store — persists within a single serverless instance on Vercel.
 // Agents re-post every few seconds so cold starts recover quickly.
-const machines = new Map<string, MachineState>();
+const users = new Map<string, UserState>();
 
-export function updateMachine(data: {
-  machineId: string;
-  machineName: string;
-  agents: Omit<AgentState, "machineName">[];
+export function updateUser(data: {
+  username: string;
+  agents: Omit<AgentState, "username">[];
   commits: WeeklyCommits;
 }) {
-  machines.set(data.machineId, {
-    machineId: data.machineId,
-    machineName: data.machineName,
-    agents: data.agents.map((a) => ({ ...a, machineName: data.machineName })),
+  users.set(data.username, {
+    username: data.username,
+    agents: data.agents.map((a) => ({ ...a, username: data.username })),
     commits: data.commits,
     lastSeen: Date.now(),
   });
 
-  // Evict machines not seen in 60s
-  for (const [id, state] of machines) {
+  // Evict users not seen in 60s
+  for (const [id, state] of users) {
     if (Date.now() - state.lastSeen > 60_000) {
-      machines.delete(id);
+      users.delete(id);
     }
   }
 }
@@ -51,20 +48,19 @@ export function updateMachine(data: {
 export function getAll(): {
   agents: AgentState[];
   commits: WeeklyCommits;
-  machines: string[];
+  users: string[];
 } {
   const agents: AgentState[] = [];
   let commits: WeeklyCommits = { days: [], total: 0 };
-  const machineNames: string[] = [];
+  const usernames: string[] = [];
 
-  for (const [, state] of machines) {
+  for (const [, state] of users) {
     if (Date.now() - state.lastSeen > 60_000) continue;
-    machineNames.push(state.machineName);
+    usernames.push(state.username);
     for (const agent of state.agents) {
       agents.push(agent);
     }
     if (state.commits.total > 0) {
-      // Merge commits: sum days by label
       if (commits.days.length === 0) {
         commits = { ...state.commits };
       } else {
@@ -83,5 +79,5 @@ export function getAll(): {
     }
   }
 
-  return { agents, commits, machines: machineNames };
+  return { agents, commits, users: usernames };
 }

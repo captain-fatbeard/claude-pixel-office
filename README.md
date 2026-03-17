@@ -13,7 +13,7 @@ Multiple developers run a local **agent** that watches Claude Code transcripts a
 - **Idle agents** get bored and wander to the coffee machine
 - **Fireworks** go off when an agent makes a git commit
 - Each agent gets a unique appearance (skin tone, hair, shirt color) based on their session ID
-- Machine name and project name are displayed under each workstation
+- GitHub username and project name are displayed under each workstation
 - **Weekly GitHub contributions** whiteboard
 
 ## Architecture
@@ -68,9 +68,7 @@ cp apps/agent/.env.example apps/agent/.env
 | Variable | Description | Default |
 |---|---|---|
 | `WEBHOOK_URL` | URL of the web app's webhook endpoint | `http://localhost:3000/api/webhook` |
-| `MACHINE_ID` | Unique machine identifier | hostname |
-| `MACHINE_NAME` | Display name shown in the office | hostname |
-| `GITHUB_USERNAME` | GitHub username for contribution chart | _(empty)_ |
+| `GITHUB_USERNAME` | GitHub username (used as identifier and for contribution chart) | _(required)_ |
 | `POLL_INTERVAL` | How often to scan transcripts (ms) | `2000` |
 
 ### Deploy
@@ -86,7 +84,7 @@ WEBHOOK_URL=https://your-app.vercel.app/api/webhook
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/webhook` | POST | Receives agent state from local services |
-| `/api/agents` | GET | Returns all agents from all connected machines |
+| `/api/agents` | GET | Returns all agents from all connected users |
 
 ## Activities
 
