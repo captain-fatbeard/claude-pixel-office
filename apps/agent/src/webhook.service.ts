@@ -18,7 +18,7 @@ export class WebhookService implements OnModuleInit {
   ) {
     this.webhookUrl = this.config.get<string>(
       'WEBHOOK_URL',
-      'http://localhost:3000/api/webhook',
+      'https://claude-pixel-office-web.vercel.app/api/webhook',
     );
     this.username = this.config.get<string>('GITHUB_USERNAME', '');
   }

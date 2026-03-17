@@ -40,10 +40,16 @@ apps/
 pnpm install
 ```
 
+### Run the agent
+
+```bash
+pnpm start:agent
+```
+
 ### Development
 
 ```bash
-# Run everything
+# Run everything locally
 pnpm dev
 
 # Or run individually
@@ -67,17 +73,13 @@ cp apps/agent/.env.example apps/agent/.env
 
 | Variable | Description | Default |
 |---|---|---|
-| `WEBHOOK_URL` | URL of the web app's webhook endpoint | `http://localhost:3000/api/webhook` |
+| `WEBHOOK_URL` | URL of the web app's webhook endpoint | `https://claude-pixel-office-web.vercel.app/api/webhook` |
 | `GITHUB_USERNAME` | GitHub username (used as identifier and for contribution chart) | _(required)_ |
 | `POLL_INTERVAL` | How often to scan transcripts (ms) | `2000` |
 
 ### Deploy
 
-The web app deploys to Vercel as a standard Next.js app. Point each dev's `WEBHOOK_URL` to the production URL:
-
-```
-WEBHOOK_URL=https://your-app.vercel.app/api/webhook
-```
+The web app deploys to Vercel as a standard Next.js app. The default `WEBHOOK_URL` already points to the production deployment.
 
 ## API
 
