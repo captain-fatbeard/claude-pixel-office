@@ -1,36 +1,92 @@
 # Claude Pixel Office
 
-A real-time pixel art visualization of your active [Claude Code](https://claude.com/claude-code) sessions. Each agent gets their own desk in a cozy Copenhagen-style office, complete with herringbone floors, tall windows, and a kitchen with an espresso machine.
+A real-time pixel art visualization of your active [Claude Code](https://claude.com/claude-code) sessions — across multiple machines. Each agent gets their own desk in a cozy Copenhagen-style office, complete with herringbone floors, tall windows, and a kitchen with an espresso machine.
 
 ![Claude Pixel Office](https://img.shields.io/badge/claude-pixel%20office-7c83ff?style=flat-square)
 
 ## What it does
 
-The server watches your local `~/.claude/projects` directory for active Claude Code session transcripts and renders each agent as a pixel art character in a shared virtual office.
+Multiple developers run a local **agent** that watches Claude Code transcripts and posts state to a shared **web dashboard** (deployable on Vercel). All connected agents appear in one shared pixel office.
 
 - Characters **sit at their desks** and type when working
 - Activity badges show what each agent is doing — reading, writing, running commands, thinking
 - **Idle agents** get bored and wander to the coffee machine
 - **Fireworks** go off when an agent makes a git commit
 - Each agent gets a unique appearance (skin tone, hair, shirt color) based on their session ID
-- Project names are displayed under each workstation
+- Machine name and project name are displayed under each workstation
+- **Weekly GitHub contributions** whiteboard
+
+## Architecture
+
+```
+apps/
+├── web/       → Next.js dashboard (deploy to Vercel)
+└── agent/     → NestJS local service (runs on each dev machine)
+```
+
+- **`apps/web`** — Next.js app that receives agent state via webhook and renders the shared pixel office. Polling-based real-time updates.
+- **`apps/agent`** — NestJS background service that reads `~/.claude/projects` transcripts, fetches GitHub contributions, and posts everything to the web app via `POST /api/webhook` every 2 seconds.
 
 ## Getting started
 
+### Prerequisites
+
+- Node.js 20+
+- pnpm 10+
+
+### Install
+
 ```bash
-npm install
-npm start
+pnpm install
 ```
 
-Then open [http://localhost:3333](http://localhost:3333) in your browser.
+### Development
 
-## How it works
+```bash
+# Run everything
+pnpm dev
 
-- **`server.ts`** — Node server that reads Claude Code JSONL transcripts, parses the latest activity from each session, and pushes updates over WebSocket
-- **`public/app.js`** — Canvas-based pixel art renderer with character animation, office furniture, and particle effects
-- **`public/index.html`** — Minimal page that hosts the canvas
+# Or run individually
+pnpm dev:web      # http://localhost:3000
+pnpm dev:agent    # posts to web app
+```
 
-The server polls `~/.claude/projects` every second and also uses `fs.watch` for faster updates. Only sessions active within the last 10 minutes are shown. The office supports up to 8 workstations.
+### Build
+
+```bash
+pnpm build
+```
+
+### Agent configuration
+
+Copy and edit the agent `.env` file:
+
+```bash
+cp apps/agent/.env.example apps/agent/.env
+```
+
+| Variable | Description | Default |
+|---|---|---|
+| `WEBHOOK_URL` | URL of the web app's webhook endpoint | `http://localhost:3000/api/webhook` |
+| `MACHINE_ID` | Unique machine identifier | hostname |
+| `MACHINE_NAME` | Display name shown in the office | hostname |
+| `GITHUB_USERNAME` | GitHub username for contribution chart | _(empty)_ |
+| `POLL_INTERVAL` | How often to scan transcripts (ms) | `2000` |
+
+### Deploy
+
+The web app deploys to Vercel as a standard Next.js app. Point each dev's `WEBHOOK_URL` to the production URL:
+
+```
+WEBHOOK_URL=https://your-app.vercel.app/api/webhook
+```
+
+## API
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/webhook` | POST | Receives agent state from local services |
+| `/api/agents` | GET | Returns all agents from all connected machines |
 
 ## Activities
 
@@ -46,9 +102,9 @@ The server polls `~/.claude/projects` every second and also uses `fs.watch` for 
 
 ## Tech stack
 
-- TypeScript + Node.js (via `tsx`)
-- WebSocket (`ws`) for real-time updates
-- Vanilla Canvas API — no frameworks, no dependencies on the client side
+- **Monorepo** — Turborepo + pnpm workspaces
+- **Web** — Next.js 15, React 19, vanilla Canvas API
+- **Agent** — NestJS 11 with `@nestjs/schedule` and `@nestjs/config`
 
 ## License
 
