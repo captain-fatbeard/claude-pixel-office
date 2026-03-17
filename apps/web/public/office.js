@@ -592,7 +592,7 @@ function updateKnownAgents() {
     }
   }
   for (const id of Object.keys(knownAgents)) {
-    if (now - knownAgents[id].lastSeen > 30000) {
+    if (now - knownAgents[id].lastSeen > 10000) {
       takenDesks.delete(knownAgents[id].deskIdx);
       delete knownAgents[id]; delete sprites[id];
     }
@@ -732,7 +732,7 @@ function cleanSprites() {
   const activeIds = new Set(agents.map(a => a.sessionId));
   for (const id of activeIds) spriteLastSeen[id] = now;
   for (const id of Object.keys(sprites)) {
-    if (!activeIds.has(id) && now - (spriteLastSeen[id] || 0) > 30000) {
+    if (!activeIds.has(id) && now - (spriteLastSeen[id] || 0) > 10000) {
       delete sprites[id]; delete spriteLastSeen[id];
     }
   }

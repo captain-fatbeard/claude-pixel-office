@@ -45,7 +45,7 @@ export class ScannerService {
               const agent = this.parseTranscript(dirPath);
               if (agent) {
                 agent.projectName = 'general';
-                if (Date.now() - agent.timestamp < 20 * 60 * 1000)
+                if (Date.now() - agent.timestamp < 2 * 60 * 1000)
                   agents.push(agent);
               }
             }
@@ -59,7 +59,7 @@ export class ScannerService {
             const agent = this.parseTranscript(join(dirPath, file));
             if (agent) {
               agent.projectName = projectName;
-              if (Date.now() - agent.timestamp < 10 * 60 * 1000)
+              if (Date.now() - agent.timestamp < 2 * 60 * 1000)
                 agents.push(agent);
             }
           }

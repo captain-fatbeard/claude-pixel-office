@@ -39,7 +39,7 @@ export function updateUser(data: {
 
   // Evict users not seen in 60s
   for (const [id, state] of users) {
-    if (Date.now() - state.lastSeen > 60_000) {
+    if (Date.now() - state.lastSeen > 15_000) {
       users.delete(id);
     }
   }
@@ -55,7 +55,7 @@ export function getAll(): {
   const usernames: string[] = [];
 
   for (const [, state] of users) {
-    if (Date.now() - state.lastSeen > 60_000) continue;
+    if (Date.now() - state.lastSeen > 15_000) continue;
     usernames.push(state.username);
     for (const agent of state.agents) {
       agents.push(agent);
